@@ -15,26 +15,34 @@ calculate_vram() {
         FP8)
             bytes_per_param=1
             ;;
+        INT8)
+            bytes_per_param=1
+            ;;
         *)
-            echo "Quantização inválida. Use FP32, FP16, BF16 ou FP8."
+            echo "Quantização inválida. Use FP32, FP16, BF16, FP8 ou INT8."
             exit 1
             ;;
     esac
 
     local vram_bytes=$((params * bytes_per_param))
-    local vram_gb=$(echo "scale=2; $vram_bytes / 1024 / 1024 / 1024" | bc)
+    local vram_gb=$(printf "%.2f" $(echo "scale=2; $vram_bytes / 1024 / 1024 / 1024" | bc))
 
     echo "Parâmetros: $params"
     echo "Quantização: $quant"
     echo "VRAM necessária: $vram_gb GB"
 }
 
-# Solicita entrada do usuário
-read -p "Digite o número de parâmetros (em bilhões): " num_params
-read -p "Digite o tipo de quantização (FP32, FP16, BF16, FP8): " quant_type
+read -p "Digite os números de parâmetros (separados por espaço): " param_list
+read -p "Digite os tipos de quantização (separados por espaço): " quant_list
 
-# Converte parâmetros para o número total
-total_params=$((num_params * 1000000000))
+IFS=' ' read -ra params <<< "$param_list"
+IFS=' ' read -ra quants <<< "$quant_list"
 
-# Calcula e exibe o resultado
-calculate_vram $total_params $quant_type
+if [ ${#params[@]} -ne ${#quants[@]} ]; then
+    echo "O número de parâmetros deve ser igual ao número de tipos de quantização."
+    exit 1
+fi
+
+for i in "${!params[@]}"; do
+    calculate_vram $((${params[i]} * 1000000000)) ${quants[i]}
+done
